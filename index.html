@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Static QR Code Generator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>Static QR Code Generator</h1>
+    <p>Enter text or a URL and click Generate to create a downloadable QR code. This page is fully static and works on GitHub Pages.</p>
+
+    <form id="qr-form" class="form" onsubmit="return false;">
+      <label for="text-input">Text or URL</label>
+      <input id="text-input" type="text" placeholder="https://example.com or any text" autocomplete="off">
+
+      <div class="controls">
+        <button id="generate">Generate</button>
+        <button id="download" disabled>Download PNG</button>
+        <button id="clear" type="button">Clear</button>
+      </div>
+
+      <label for="size">Size</label>
+      <select id="size">
+        <option value="128">128px</option>
+        <option value="256" selected>256px</option>
+        <option value="512">512px</option>
+      </select>
+
+      <label for="level">Error correction</label>
+      <select id="level">
+        <option value="L">L (Low)</option>
+        <option value="M" selected>M (Medium)</option>
+        <option value="Q">Q (Quartile)</option>
+        <option value="H">H (High)</option>
+      </select>
+    </form>
+
+    <section class="preview">
+      <h2>Preview</h2>
+      <div id="qrcode" aria-live="polite"></div>
+      <p id="info" class="info">No QR code yet.</p>
+    </section>
+
+    <footer>
+      <p>Works fully static on GitHub Pages. Libraries used: QRCode.js (cdnjs)</p>
+    </footer>
+  </main>
+
+  <!-- QRCode.js from CDNJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="" crossorigin="anonymous"></script>
+
+  <script>
+    // Utility to map letter to library constant
+    const correctionMap = { L: QRCode.CorrectLevel.L, M: QRCode.CorrectLevel.M, Q: QRCode.CorrectLevel.Q, H: QRCode.CorrectLevel.H };
+
+    const input = document.getElementById('text-input');
+    const generateBtn = document.getElementById('generate');
+    const downloadBtn = document.getElementById('download');
+    const clearBtn = document.getElementById('clear');
+    const qrcodeEl = document.getElementById('qrcode');
+    const info = document.getElementById('info');
+    const sizeSel = document.getElementById('size');
+    const levelSel = document.getElementById('level');
+
+    let qrcode = null;
+
+    function clearQR() {
+      qrcodeEl.innerHTML = '';
+      qrcode = null;
+      info.textContent = 'No QR code yet.';
+      downloadBtn.disabled = true;
+    }
+
+    function generateQR() {
+      const value = input.value.trim();
+      if (!value) {
+        info.textContent = 'Please enter text or a URL to generate a QR code.';
+        return;
+      }
+
+      clearQR();
+
+      const size = parseInt(sizeSel.value, 10) || 256;
+      const level = levelSel.value || 'M';
+
+      qrcode = new QRCode(qrcodeEl, {
+        text: value,
+        width: size,
+        height: size,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: correctionMap[level]
+      });
+
+      info.textContent = 'QR code generated.';
+      downloadBtn.disabled = false;
+    }
+
+    function downloadQR() {
+      if (!qrcodeEl) return;
+
+      // QRCode.js sometimes creates an <img> or a <canvas> or <table>. Handle common cases.
+      const img = qrcodeEl.querySelector('img');
+      const canvas = qrcodeEl.querySelector('canvas');
+
+      if (img && img.src) {
+        // img.src is a data URL already in most cases
+        triggerDownload(img.src, 'qrcode.png');
+        return;
+      }
+
+      if (canvas) {
+        const dataUrl = canvas.toDataURL('image/png');
+        triggerDownload(dataUrl, 'qrcode.png');
+        return;
+      }
+
+      // Fallback: render the element to an offscreen canvas by drawing its SVG or table is complex.
+      alert('Unable to find QR image or canvas to download. Try a different size.');
+    }
+
+    function triggerDownload(dataUrl, filename) {
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    // Event listeners
+    generateBtn.addEventListener('click', (e) => { e.preventDefault(); generateQR(); });
+    downloadBtn.addEventListener('click', (e) => { e.preventDefault(); downloadQR(); });
+    clearBtn.addEventListener('click', (e) => { e.preventDefault(); input.value = ''; clearQR(); });
+
+    // Allow Enter key to generate
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); generateQR(); } });
+
+    // Generate on paste quickly
+    input.addEventListener('paste', () => { setTimeout(generateQR, 50); });
+
+    // Start with placeholder
+    clearQR();
+  </script>
+</body>
+</html>
